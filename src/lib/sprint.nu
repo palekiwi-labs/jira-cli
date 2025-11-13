@@ -1,6 +1,9 @@
 use api.nu [request]
 use logger.nu [log log-success log-error]
 
+# TODO:
+# add `--group-by`
+
 export def get_active [] {
     let config = get_config
     
