@@ -1,16 +1,13 @@
 #!/usr/bin/env nu
 
+use lib/api.nu [request]
+use lib/config.nu [get_config]
+
 def main [
     sprint_id?: int 
     --quiet(-q)
 ] {
-    # Configuration - Read from environment variables
-    let config = {
-        url: $env.JIRA_URL
-        email: $env.JIRA_EMAIL
-        token: $env.JIRA_TOKEN
-        board_id: $env.JIRA_BOARD_ID
-    }
+    let config = get_config
 
     let sprint = if $sprint_id != null {
         get_sprint_by_id --quiet=$quiet $config $sprint_id
@@ -20,27 +17,13 @@ def main [
     fetch_done_issues --quiet=$quiet $config $sprint
 }
 
-# Make authenticated request to Jira API
-def jira_request [ config: record, endpoint: string ] {
-    let url = $"($config.url)/rest/agile/1.0($endpoint)"
-
-    # TODO: This should return an error in the response
-    try {
-        http get --user $config.email --password $config.token --headers [Content-Type application/json] $url
-    } catch {                                                                                        
-        print --stderr $"(ansi red)Error: Failed to fetch data from Jira API(ansi reset)"            
-        print --stderr $"URL: ($url)"                                                                
-        exit 1                                                                                       
-    }
-}
-
 # Get current active sprint
 def get_current_sprint [ config: record, --quiet ] {
     if not $quiet {
         print $"(ansi default)Fetching current active sprint...(ansi reset)"
     }
 
-    let sprints = jira_request $config $"/board/($config.board_id)/sprint?state=active"
+    let sprints = request $config $"/board/($config.board_id)/sprint?state=active"
     let sprint = $sprints | get values.0?
 
     if ($sprint == null) {                                                                            
@@ -63,7 +46,7 @@ def get_sprint_by_id [
 ] {
     if not $quiet { print $"(ansi default)Fetching sprint ($sprint_id)...(ansi reset)" }
 
-    jira_request $config $"/sprint/($sprint_id)"
+    request $config $"/sprint/($sprint_id)"
 }
 
 # Fetch and format issues
@@ -77,7 +60,7 @@ def fetch_done_issues [
     if not $quiet { print $"(ansi default)Fetching done issues for sprint ($sprint_id)...(ansi reset)" }
 
     let endpoint = $"/board/($config.board_id)/sprint/($sprint_id)/issue?maxResults=100&fields=summary,assignee,status,parent"
-    let issues = jira_request $config $endpoint
+    let issues = request $config $endpoint
 
     let issues = $issues | get issues | where $it.fields.status.name == "Done"
 
