@@ -2,91 +2,62 @@
 
 use lib/api.nu [request]
 use lib/config.nu [get_config]
+use lib/sprint.nu
 
-def main [
-    sprint_id?: int 
+def main [] {
+    print "Usage: jira-cli <sprint|issue> <command> [options]
+
+Subcommands:
+  sprint    Sprint operations
+  issue     Issue operations (not yet implemented)"
+}
+
+def "main sprint" [] {
+    print "Usage: jira-cli sprint <list|active|view|issues|report>
+
+Commands:
+  list              List all sprints
+  active            Show current active sprint
+  view <id>         View sprint details
+  issues [id]       List issues in sprint (defaults to active)
+  report [id]       Show sprint report (defaults to active)"
+}
+
+def "main sprint active" [--quiet(-q)] {
+    get_current_sprint --quiet=$quiet
+}
+
+def "main sprint view" [sprint_id: int, --quiet(-q)] {
+    get_sprint_by_id $sprint_id --quiet=$quiet
+}
+
+def "main sprint issues" [
+    sprint_id?: int
+    --status: string
     --quiet(-q)
 ] {
-    let config = get_config
-
     let sprint = if $sprint_id != null {
-        get_sprint_by_id --quiet=$quiet $config $sprint_id
+        get_sprint_by_id $sprint_id --quiet=$quiet
     } else {
-        get_current_sprint --quiet=$quiet $config
+        get_current_sprint --quiet=$quiet
     }
-    fetch_done_issues --quiet=$quiet $config $sprint
+    get_sprint_issues $sprint.id --status=$status --quiet=$quiet
 }
 
-# Get current active sprint
-def get_current_sprint [ config: record, --quiet ] {
-    if not $quiet {
-        print $"(ansi default)Fetching current active sprint...(ansi reset)"
-    }
-
-    let sprints = request $config $"/board/($config.board_id)/sprint?state=active"
-    let sprint = $sprints | get values.0?
-
-    if ($sprint == null) {                                                                            
-         print --stderr $"(ansi red)Error: No active sprint found(ansi reset)"                            
-         exit 1                                                                                           
-    }
-
-    if not $quiet {
-        print $"(ansi green)Found active sprint: ($sprint | get name) \(id: ($sprint | get id)\)(ansi reset)"
-    }
-
-    $sprint
+def "main sprint list" [--state: string = "all"] {
+    list_sprints --state=$state
 }
 
-# # Get sprint ID by number
-def get_sprint_by_id [
-    config: record
-    sprint_id: int
-    --quiet
-] {
-    if not $quiet { print $"(ansi default)Fetching sprint ($sprint_id)...(ansi reset)" }
-
-    request $config $"/sprint/($sprint_id)"
+def "main sprint report" [sprint_id?: int, --quiet(-q)] {
+    let sprint = if $sprint_id != null {
+        get_sprint_by_id $sprint_id --quiet=$quiet
+    } else {
+        get_current_sprint --quiet=$quiet
+    }
+    get_sprint_report $sprint.id
 }
 
-# Fetch and format issues
-def fetch_done_issues [
-    config: record
-    sprint: record
-    --quiet
-] {
-    let sprint_id = $sprint.id
-
-    if not $quiet { print $"(ansi default)Fetching done issues for sprint ($sprint_id)...(ansi reset)" }
-
-    let endpoint = $"/board/($config.board_id)/sprint/($sprint_id)/issue?maxResults=100&fields=summary,assignee,status,parent"
-    let issues = request $config $endpoint
-
-    let issues = $issues | get issues | where $it.fields.status.name == "Done"
-
-    if not $quiet { print $"(ansi default)Found ($issues | length) issues.(ansi reset)" }
-
-    $issues
-    | group-by { |it| $it.fields.parent?.fields?.summary? | default "" }
-    | items { |parent_name, issues|
-        if $parent_name != "" {
-            [
-                $"\n[($parent_name)]"
-                ...($issues | each { |issue|
-                    let assignee = $issue.fields.assignee?.displayName? | default "Unassigned"
-                    $"* ($issue.fields.summary) \(($assignee))"
-                })
-            ]
-        } else {
-            [
-                $"\n[Misc]"
-                ...($issues | each { |issue|
-                    let assignee = $issue.fields.assignee?.displayName? | default "Unassigned"
-                    $"* ($issue.fields.summary) \(($assignee))"
-                })
-            ]
-        }
-    }
-    | flatten
-    | str join "\n"
+def "main issue" [] {
+    print "Usage: jira-cli issue <view|list|create|update|assign|transition>
+(Not yet implemented - coming in Phase 3)"
 }
