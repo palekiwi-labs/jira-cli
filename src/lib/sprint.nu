@@ -1,34 +1,27 @@
-export def get_current_sprint [--quiet] {
+use logger.nu [log log-success log-error]
+
+export def get_current_sprint [] {
     let config = get_config
     
-    if not $quiet {
-        print $"(ansi default)Fetching current active sprint...(ansi reset)"
-    }
+    log "Fetching current active sprint..."
 
     let sprints = jira_request $config $"/board/($config.board_id)/sprint?state=active"
     let sprint = $sprints | get values.0?
 
     if ($sprint == null) {
-        print --stderr $"(ansi red)Error: No active sprint found(ansi reset)"
+        log-error "Error: No active sprint found"
         exit 1
     }
 
-    if not $quiet {
-        print $"(ansi green)Found active sprint: ($sprint | get name) \(id: ($sprint | get id)\)(ansi reset)"
-    }
+    log-success $"Found active sprint: ($sprint | get name) \(id: ($sprint | get id)\)"
 
     $sprint
 }
 
-export def get_sprint_by_id [
-    sprint_id: int
-    --quiet
-] {
+export def get_sprint_by_id [sprint_id: int] {
     let config = get_config
     
-    if not $quiet {
-        print $"(ansi default)Fetching sprint ($sprint_id)...(ansi reset)"
-    }
+    log $"Fetching sprint ($sprint_id)..."
 
     jira_request $config $"/sprint/($sprint_id)"
 }
@@ -36,13 +29,10 @@ export def get_sprint_by_id [
 export def get_sprint_issues [
     sprint_id: int
     --status: string
-    --quiet
 ] {
     let config = get_config
 
-    if not $quiet {
-        print $"(ansi default)Fetching issues for sprint ($sprint_id)...(ansi reset)"
-    }
+    log $"Fetching issues for sprint ($sprint_id)..."
 
     let endpoint = $"/board/($config.board_id)/sprint/($sprint_id)/issue?maxResults=100&fields=summary,assignee,status,parent"
     let issues = jira_request $config $endpoint
@@ -53,9 +43,7 @@ export def get_sprint_issues [
         $issues | get issues | where $it.fields.status.name == "Done"
     }
 
-    if not $quiet {
-        print $"(ansi default)Found ($filtered_issues | length) issues.(ansi reset)"
-    }
+    log $"Found ($filtered_issues | length) issues."
 
     $filtered_issues
     | group-by { |it| $it.fields.parent?.fields?.summary? | default "" }
