@@ -1,11 +1,12 @@
+use api.nu [request]
 use logger.nu [log log-success log-error]
 
-export def get_current_sprint [] {
+export def get_active [] {
     let config = get_config
     
     log "Fetching current active sprint..."
 
-    let sprints = jira_request $config $"/board/($config.board_id)/sprint?state=active"
+    let sprints = request $config $"/board/($config.board_id)/sprint?state=active"
     let sprint = $sprints | get values.0?
 
     if ($sprint == null) {
@@ -18,24 +19,21 @@ export def get_current_sprint [] {
     $sprint
 }
 
-export def get_sprint_by_id [sprint_id: int] {
+export def get_by_id [sprint_id: int] {
     let config = get_config
     
     log $"Fetching sprint ($sprint_id)..."
 
-    jira_request $config $"/sprint/($sprint_id)"
+    request $config $"/sprint/($sprint_id)"
 }
 
-export def get_sprint_issues [
-    sprint_id: int
-    --status: string
-] {
+export def get_issues [sprint_id: int, --status: string] {
     let config = get_config
 
     log $"Fetching issues for sprint ($sprint_id)..."
 
     let endpoint = $"/board/($config.board_id)/sprint/($sprint_id)/issue?maxResults=100&fields=summary,assignee,status,parent"
-    let issues = jira_request $config $endpoint
+    let issues = request $config $endpoint
 
     let filtered_issues = if $status != null {
         $issues | get issues | where $it.fields.status.name == $status
@@ -70,7 +68,7 @@ export def get_sprint_issues [
     | str join "\n"
 }
 
-export def list_sprints [--state: string = "all"] {
+export def list [--state: string = "all"] {
     let config = get_config
     
     let endpoint = if $state == "all" {
@@ -79,14 +77,14 @@ export def list_sprints [--state: string = "all"] {
         $"/board/($config.board_id)/sprint?state=($state)"
     }
     
-    jira_request $config $endpoint
+    request $config $endpoint
 }
 
-export def get_sprint_report [sprint_id: int] {
+export def get_report [sprint_id: int] {
     let config = get_config
     
     let endpoint = $"/board/($config.board_id)/sprint/($sprint_id)/issue?maxResults=100&fields=status"
-    let issues = jira_request $config $endpoint
+    let issues = request $config $endpoint
     
     $issues
     | get issues

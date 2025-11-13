@@ -23,50 +23,34 @@ Commands:
   report [id]       Show sprint report (defaults to active)"
 }
 
-def "main sprint active" [--quiet(-q)] {
-    if $quiet {
-        $env.JIRA_QUIET = true
-    }
-    get_current_sprint
+def "main sprint active" [] {
+    sprint get_active
 }
 
-def "main sprint view" [sprint_id: int, --quiet(-q)] {
-    if $quiet {
-        $env.JIRA_QUIET = true
-    }
-    get_sprint_by_id $sprint_id
+def "main sprint view" [sprint_id: int] {
+    sprint get_by_id $sprint_id
 }
 
-def "main sprint issues" [
-    sprint_id?: int
-    --status: string
-    --quiet(-q)
-] {
-    if $quiet {
-        $env.JIRA_QUIET = true
-    }
+def "main sprint issues" [sprint_id?: int, --status: string] {
     let sprint = if $sprint_id != null {
-        get_sprint_by_id $sprint_id
+        sprint get_by_id $sprint_id
     } else {
-        get_current_sprint
+        sprint get_active
     }
-    get_sprint_issues $sprint.id --status=$status
+    sprint get_issues $sprint.id --status=$status
 }
 
 def "main sprint list" [--state: string = "all"] {
-    list_sprints --state=$state
+    sprint list --state=$state
 }
 
-def "main sprint report" [sprint_id?: int, --quiet(-q)] {
-    if $quiet {
-        $env.JIRA_QUIET = true
-    }
+def "main sprint report" [sprint_id?: int] {
     let sprint = if $sprint_id != null {
-        get_sprint_by_id $sprint_id
+        sprint get_by_id $sprint_id
     } else {
-        get_current_sprint
+        sprint get_active
     }
-    get_sprint_report $sprint.id
+    sprint get_report $sprint.id
 }
 
 def "main issue" [] {
