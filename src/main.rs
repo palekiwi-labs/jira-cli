@@ -1,6 +1,3 @@
-mod cli;
-mod commands;
-
 fn main() {
-    cli::run();
+    jira_cli::run();
 }
