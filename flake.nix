@@ -17,7 +17,7 @@
     in
     {
       packages.${system}.default = pkgs.rustPlatform.buildRustPackage {
-        pname = "your-rust-package";
+        pname = "jira-cli";
         version = "0.1.0";
         src = ./.;
         
@@ -27,11 +27,7 @@
         
         nativeBuildInputs = [ rustToolchain ];
         
-        # Add any system dependencies your package needs
         buildInputs = [];
-        
-        # Add any build-time environment variables if needed
-        # RUSTFLAGS = "-C target-cpu=native";
       };
 
       devShells.${system}.default = pkgs.mkShell
