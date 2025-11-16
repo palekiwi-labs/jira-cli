@@ -7,6 +7,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.5.51", features = ["derive"] }
+reqwest = { version = "0.12.24", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [[bin]]
 name = "jira-cli"

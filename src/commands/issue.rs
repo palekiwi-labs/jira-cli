@@ -19,12 +19,13 @@ struct ViewArgs {
     id: Option<u16>,
 }
 
-pub fn handle(config: Config, args: Args) -> Result<()> {
+pub async fn handle(config: Config, args: Args) -> Result<()> {
     match args.command {
-        Commands::View(view_args) => {
-            println!("Looking for issue with id {:?} for board {}", view_args.id, config.board_id);
-
-            Ok(())
-        }
+        Commands::View(view_args) => view_issue(config, view_args).await
     }
+}
+
+async fn view_issue(config: Config, args: ViewArgs) -> Result<()> {
+    println!("Looking for issue with id {:?} for board {}", args.id, config.board_id);
+    Ok(())
 }

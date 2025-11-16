@@ -19,12 +19,12 @@ enum Commands {
     Sprint(sprint::Args),
 }
 
-pub fn run() -> Result<()> {
+pub async fn run() -> Result<()> {
     let cli = Cli::parse();
     let config = get_config()?;
 
     match cli.command {
-        Commands::Issue(args) => issue::handle(config, args),
-        Commands::Sprint(args) => sprint::handle(config, args),
+        Commands::Issue(args) => issue::handle(config, args).await,
+        Commands::Sprint(args) => sprint::handle(config, args).await,
     }
 }
