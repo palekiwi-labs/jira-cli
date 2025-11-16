@@ -1,5 +1,6 @@
-use clap::{Args as ClapArgs, Subcommand};
 use anyhow::{Result};
+use clap::{Args as ClapArgs, Subcommand};
+use serde::Deserialize;
 
 use crate::config::Config;
 
@@ -16,7 +17,13 @@ enum Commands {
 
 #[derive(ClapArgs)]
 struct ViewArgs {
-    id: Option<u16>,
+    key: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct JiraIssue {
+    id: String,
+    key: String,
 }
 
 pub async fn handle(config: Config, args: Args) -> Result<()> {
@@ -26,6 +33,24 @@ pub async fn handle(config: Config, args: Args) -> Result<()> {
 }
 
 async fn view_issue(config: Config, args: ViewArgs) -> Result<()> {
-    println!("Looking for issue with id {:?} for board {}", args.id, config.board_id);
+    let client = reqwest::Client::builder()
+        .user_agent("jira-cli/0.1.0")
+        .build()?;
+
+    let url = format!(
+        "{}/rest/api/3/issue/{}",
+        config.url,
+        args.key.unwrap_or(String::from(""))
+    );
+
+    let response = client
+        .get(&url)
+        .basic_auth(&config.email, Some(&config.token))
+        .send()
+        .await?;
+
+    let issue: JiraIssue = response.json().await?;
+    println!("Issue id: {}, issue key: {}", issue.id, issue.key);
+
     Ok(())
 }
