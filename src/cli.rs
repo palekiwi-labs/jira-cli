@@ -1,5 +1,8 @@
+use crate::commands::{issue, sprint};
+use crate::config::get_config;
 use clap::{Parser, Subcommand};
-use crate::commands::{sprint, issue};
+
+use anyhow::{Result};
 
 #[derive(Parser)]
 #[command(name = "Jira CLI")]
@@ -16,12 +19,12 @@ enum Commands {
     Sprint(sprint::Args),
 }
 
-pub fn run() {
+pub fn run() -> Result<()> {
     let cli = Cli::parse();
+    let config = get_config()?;
 
     match cli.command {
-        Commands::Issue(args) => issue::handle(args),
-        Commands::Sprint(args) => sprint::handle(args),
+        Commands::Issue(args) => issue::handle(config, args),
+        Commands::Sprint(args) => sprint::handle(config, args),
     }
 }
-

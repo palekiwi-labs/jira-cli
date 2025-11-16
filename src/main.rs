@@ -1,3 +1,3 @@
-fn main() {
-    jira_cli::run();
+fn main() -> anyhow::Result<()> {
+    jira_cli::run()
 }
