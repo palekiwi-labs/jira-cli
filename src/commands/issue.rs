@@ -1,6 +1,5 @@
 use anyhow::{Result};
 use clap::{Args as ClapArgs, Subcommand};
-use serde::Deserialize;
 
 use crate::config::Config;
 
@@ -18,12 +17,6 @@ enum Commands {
 #[derive(ClapArgs)]
 struct ViewArgs {
     key: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct JiraIssue {
-    id: String,
-    key: String,
 }
 
 pub async fn handle(config: Config, args: Args) -> Result<()> {
@@ -49,8 +42,8 @@ async fn view_issue(config: Config, args: ViewArgs) -> Result<()> {
         .send()
         .await?;
 
-    let issue: JiraIssue = response.json().await?;
-    println!("Issue id: {}, issue key: {}", issue.id, issue.key);
+    let issue: serde_json::Value = response.json().await?;
+    println!("{}", serde_json::to_string_pretty(&issue)?);
 
     Ok(())
 }
