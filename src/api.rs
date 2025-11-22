@@ -12,7 +12,7 @@ pub struct Api {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SprintResponse {
+pub struct BoardSprints {
     #[serde(rename = "isLast")]
     pub is_last: bool,
     #[serde(rename = "maxResults")]
@@ -68,6 +68,102 @@ impl SprintParams {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SprintIssuesResponse {
+    pub expand: Option<String>,
+    pub issues: Vec<Issue>,
+    #[serde(rename = "maxResults")]
+    pub max_results: u32,
+    #[serde(rename = "startAt")]
+    pub start_at: u32,
+    pub total: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Issue {
+    pub id: String,
+    pub key: String,
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub fields: IssueFields,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IssueFields {
+    pub summary: Option<String>,
+    pub description: Option<serde_json::Value>,
+    pub status: Option<IssueStatus>,
+    pub issuetype: Option<IssueType>,
+    pub assignee: Option<Assignee>,
+    pub priority: Option<Priority>,
+    pub project: Option<Project>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IssueStatus {
+    pub name: Option<String>,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IssueType {
+    pub name: Option<String>,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Assignee {
+    #[serde(rename = "displayName")]
+    pub display_name: Option<String>,
+    #[serde(rename = "emailAddress")]
+    pub email_address: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Priority {
+    pub name: Option<String>,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Project {
+    pub key: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct SprintIssuesParams {
+    #[serde(rename = "startAt")]
+    start_at: Option<u32>,
+    #[serde(rename = "maxResults")]
+    max_results: Option<u32>,
+    jql: Option<String>,
+    #[serde(rename = "validateQuery")]
+    validate_query: Option<bool>,
+    fields: Option<String>,
+    expand: Option<String>,
+}
+
+impl SprintIssuesParams {
+    pub fn new(
+        start_at: Option<u32>,
+        max_results: Option<u32>,
+        jql: Option<String>,
+        validate_query: Option<bool>,
+        fields: Option<String>,
+        expand: Option<String>,
+    ) -> Self {
+        SprintIssuesParams {
+            start_at,
+            max_results,
+            jql,
+            validate_query,
+            fields,
+            expand,
+        }
+    }
+}
+
 impl Api {
     pub fn from_config(config: Config) -> Api {
         Api {
@@ -91,7 +187,7 @@ impl Api {
         }
     }
 
-    pub async fn get_board_sprints(&self, board_id: u32, params: SprintParams) -> Result<SprintResponse> {
+    pub async fn get_board_sprints(&self, board_id: u32, params: SprintParams) -> Result<BoardSprints> {
         let url = format!("{}/rest/agile/1.0/board/{}/sprint", self.base_url, board_id);
 
         let response = self
@@ -112,6 +208,29 @@ impl Api {
         let response = self
             .client
             .get(&url)
+            .header("Accept", "application/json")
+            .basic_auth(&self.email, Some(&self.token))
+            .send()
+            .await?;
+
+        self.handle_response(response).await
+    }
+
+    pub async fn get_sprint_issues(
+        &self,
+        board_id: u32,
+        sprint_id: u32,
+        params: SprintIssuesParams,
+    ) -> Result<SprintIssuesResponse> {
+        let url = format!(
+            "{}/rest/agile/1.0/board/{}/sprint/{}/issue",
+            self.base_url, board_id, sprint_id
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .query(&params)
             .header("Accept", "application/json")
             .basic_auth(&self.email, Some(&self.token))
             .send()
