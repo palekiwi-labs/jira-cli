@@ -1,4 +1,6 @@
 use anyhow::{Result};
+use serde_json::Value;
+
 use clap::{Args as ClapArgs, Subcommand};
 
 use crate::config::Config;
@@ -19,13 +21,13 @@ struct ViewArgs {
     key: Option<String>,
 }
 
-pub async fn handle(config: Config, args: Args) -> Result<()> {
+pub async fn handle(config: Config, args: Args) -> Result<Value> {
     match args.command {
         Commands::View(view_args) => view_issue(config, view_args).await
     }
 }
 
-async fn view_issue(config: Config, args: ViewArgs) -> Result<()> {
+async fn view_issue(config: Config, args: ViewArgs) -> Result<Value> {
     let client = reqwest::Client::builder()
         .user_agent("jira-cli/0.1.0")
         .build()?;
@@ -42,8 +44,5 @@ async fn view_issue(config: Config, args: ViewArgs) -> Result<()> {
         .send()
         .await?;
 
-    let issue: serde_json::Value = response.json().await?;
-    println!("{}", serde_json::to_string_pretty(&issue)?);
-
-    Ok(())
+    Ok(response.json().await?)
 }

@@ -23,8 +23,14 @@ pub async fn run() -> Result<()> {
     let cli = Cli::parse();
     let config = get_config()?;
 
-    match cli.command {
+    let result = match cli.command {
         Commands::Issue(args) => issue::handle(config, args).await,
         Commands::Sprint(args) => sprint::handle(config, args).await,
+    };
+
+    if let Ok(value) = result {
+        println!("{}", serde_json::to_string_pretty(&value)?);
     }
+
+    Ok(())
 }

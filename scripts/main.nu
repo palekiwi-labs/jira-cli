@@ -25,7 +25,7 @@ Commands:
 }
 
 def "main sprint active" [] {
-    sprint get_active
+    sprint get_active | to json
 }
 
 def "main sprint view" [sprint_id: int] {
