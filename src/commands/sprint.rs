@@ -36,6 +36,9 @@ struct ListArgs {
 
     #[arg(long)]
     max_results: Option<u32>,
+
+    #[arg(long)]
+    start_at: Option<u32>,
 }
 
 pub async fn handle(config: Config, args: Args) -> Result<Value> {
@@ -48,7 +51,7 @@ pub async fn handle(config: Config, args: Args) -> Result<Value> {
 }
 
 async fn list(api: Api, args: ListArgs) -> Result<Value> {
-    let params = SprintParams::new(args.state, args.max_results, None);
+    let params = SprintParams::new(args.state, args.max_results, args.start_at);
     let response = api.get_sprint(args.board_id, params).await?;
 
     Ok(serde_json::to_value(response)?)

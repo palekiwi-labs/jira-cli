@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +37,7 @@ pub struct Sprint {
     #[serde(rename = "completeDate")]
     pub complete_date: Option<String>,
     #[serde(rename = "originBoardId")]
-    pub origin_board_id: u32,
+    pub origin_board_id: Option<u32>,
     pub goal: Option<String>,
 }
 
@@ -60,7 +60,11 @@ pub struct SprintParams {
 
 impl SprintParams {
     pub fn new(state: Option<String>, max_results: Option<u32>, start_at: Option<u32>) -> Self {
-        SprintParams { state, max_results, start_at }
+        SprintParams {
+            state,
+            max_results,
+            start_at,
+        }
     }
 }
 
@@ -75,13 +79,10 @@ impl Api {
     }
 
     pub async fn get_sprint(&self, board_id: u32, params: SprintParams) -> Result<SprintResponse> {
-        let url = format!(
-            "{}/rest/agile/1.0/board/{}/sprint",
-            self.base_url,
-            board_id
-        );
+        let url = format!("{}/rest/agile/1.0/board/{}/sprint", self.base_url, board_id);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .query(&params)
             .header("Accept", "application/json")
@@ -90,11 +91,14 @@ impl Api {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
         if !status.is_success() {
-            bail!("API request failed with status: {} for URL: {}", status, url)
+            bail!( "API request failed with status: {} for URL: {}", status, url)
         } else {
-            Ok(response.json().await?)
+            serde_json::from_str(&response_text).map_err(|e| {
+                anyhow::anyhow!("Failed to parse JSON response from {}: {}", url, e)
+            })
         }
     }
 }
