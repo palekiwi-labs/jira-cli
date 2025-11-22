@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::config::Config;
 
@@ -78,6 +78,19 @@ impl Api {
         }
     }
 
+    async fn handle_response<T: DeserializeOwned>(&self, response: reqwest::Response) -> Result<T> {
+        let status = response.status();
+        let response_text = response.text().await?;
+
+        if !status.is_success() {
+            bail!( "API request failed with status: {}", status)
+        } else {
+            serde_json::from_str(&response_text).map_err(|e| {
+                anyhow::anyhow!("Failed to parse JSON response: {}", e)
+            })
+        }
+    }
+
     pub async fn get_board_sprints(&self, board_id: u32, params: SprintParams) -> Result<SprintResponse> {
         let url = format!("{}/rest/agile/1.0/board/{}/sprint", self.base_url, board_id);
 
@@ -90,16 +103,7 @@ impl Api {
             .send()
             .await?;
 
-        let status = response.status();
-        let response_text = response.text().await?;
-
-        if !status.is_success() {
-            bail!( "API request failed with status: {} for URL: {}", status, url)
-        } else {
-            serde_json::from_str(&response_text).map_err(|e| {
-                anyhow::anyhow!("Failed to parse JSON response from {}: {}", url, e)
-            })
-        }
+        self.handle_response(response).await
     }
 
     pub async fn get_sprint_by_id(&self, sprint_id: u32) -> Result<Sprint> {
@@ -113,15 +117,6 @@ impl Api {
             .send()
             .await?;
 
-        let status = response.status();
-        let response_text = response.text().await?;
-
-        if !status.is_success() {
-            bail!("API request failed with status: {} for URL: {}", status, url)
-        } else {
-            serde_json::from_str(&response_text).map_err(|e| {
-                anyhow::anyhow!("Failed to parse JSON response from {}: {}", url, e)
-            })
-        }
+        self.handle_response(response).await
     }
 }
