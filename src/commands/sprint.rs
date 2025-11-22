@@ -2,6 +2,7 @@ use clap::{Args as ClapArgs, Subcommand};
 use anyhow::{Result};
 use serde_json::Value;
 
+use crate::api::Api;
 use crate::config::Config;
 
 #[derive(ClapArgs)]
@@ -31,17 +32,21 @@ struct ListArgs {
     board_id: u32,
 }
 
-pub async fn handle(_config: Config, args: Args) -> Result<Value> {
+pub async fn handle(config: Config, args: Args) -> Result<Value> {
+    let api = Api::from_config(config);
+
     match args.command {
-        Commands::List(list_args) => list(list_args).await,
-        Commands::View(view_args) => view(view_args).await,
+        Commands::List(list_args) => list(api, list_args).await,
+        Commands::View(view_args) => view(api, view_args).await,
     }
 }
 
-async fn list(args: ListArgs) -> Result<Value> {
-    Ok(serde_json::json!({"message": format!("dummy list result for board: {}", args.board_id)}))
+async fn list(api: Api, args: ListArgs) -> Result<Value> {
+    let response = api.get_sprint(args.board_id).await?;
+
+    Ok(response)
 }
 
-async fn view(args: ViewArgs) -> Result<Value> {
+async fn view(_api: Api, args: ViewArgs) -> Result<Value> {
     Ok(serde_json::json!({"message": format!("dummy view result for board: {}", args.board_id)}))
 }

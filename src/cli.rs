@@ -2,8 +2,6 @@ use crate::commands::{issue, sprint};
 use crate::config::get_config;
 use clap::{Parser, Subcommand};
 
-use anyhow::{Result};
-
 #[derive(Parser)]
 #[command(name = "Jira CLI")]
 #[command(version, about)]
@@ -19,18 +17,32 @@ enum Commands {
     Sprint(sprint::Args),
 }
 
-pub async fn run() -> Result<()> {
+pub async fn run() {
     let cli = Cli::parse();
-    let config = get_config()?;
+    let config = match get_config() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Config error: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     let result = match cli.command {
         Commands::Issue(args) => issue::handle(config, args).await,
         Commands::Sprint(args) => sprint::handle(config, args).await,
     };
 
-    if let Ok(value) = result {
-        println!("{}", serde_json::to_string_pretty(&value)?);
+    match result {
+        Ok(value) => {
+            match serde_json::to_string_pretty(&value) {
+                Ok(json) => println!("{}", json),
+                Err(e) => {
+                    eprintln!("JSON serialization error: {}", e);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+        }
     }
-
-    Ok(())
 }
