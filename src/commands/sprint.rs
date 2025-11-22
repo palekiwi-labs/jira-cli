@@ -34,7 +34,7 @@ struct ListArgs {
     #[arg(short, long)]
     state: Option<String>,
 
-    #[arg(short, long)]
+    #[arg(long)]
     max_results: Option<u32>,
 }
 
