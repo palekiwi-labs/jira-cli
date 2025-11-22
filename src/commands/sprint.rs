@@ -19,11 +19,7 @@ enum Commands {
 
 #[derive(ClapArgs)]
 struct ViewArgs {
-    #[arg(long, env = "JIRA_BOARD_ID")]
-    board_id: u32,
-
-    id: Option<u16>,
-
+    id: u32,
 }
 
 #[derive(ClapArgs)]
@@ -52,11 +48,12 @@ pub async fn handle(config: Config, args: Args) -> Result<Value> {
 
 async fn list(api: Api, args: ListArgs) -> Result<Value> {
     let params = SprintParams::new(args.state, args.max_results, args.start_at);
-    let response = api.get_sprint(args.board_id, params).await?;
+    let response = api.get_board_sprints(args.board_id, params).await?;
 
     Ok(serde_json::to_value(response)?)
 }
 
-async fn view(_api: Api, args: ViewArgs) -> Result<Value> {
-    Ok(serde_json::json!({"message": format!("dummy view result for board: {}", args.board_id)}))
+async fn view(api: Api, args: ViewArgs) -> Result<Value> {
+    let sprint = api.get_sprint_by_id(args.id).await?;
+    Ok(serde_json::to_value(sprint)?)
 }

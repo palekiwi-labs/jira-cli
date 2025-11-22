@@ -78,7 +78,7 @@ impl Api {
         }
     }
 
-    pub async fn get_sprint(&self, board_id: u32, params: SprintParams) -> Result<SprintResponse> {
+    pub async fn get_board_sprints(&self, board_id: u32, params: SprintParams) -> Result<SprintResponse> {
         let url = format!("{}/rest/agile/1.0/board/{}/sprint", self.base_url, board_id);
 
         let response = self
@@ -95,6 +95,29 @@ impl Api {
 
         if !status.is_success() {
             bail!( "API request failed with status: {} for URL: {}", status, url)
+        } else {
+            serde_json::from_str(&response_text).map_err(|e| {
+                anyhow::anyhow!("Failed to parse JSON response from {}: {}", url, e)
+            })
+        }
+    }
+
+    pub async fn get_sprint_by_id(&self, sprint_id: u32) -> Result<Sprint> {
+        let url = format!("{}/rest/agile/1.0/sprint/{}", self.base_url, sprint_id);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Accept", "application/json")
+            .basic_auth(&self.email, Some(&self.token))
+            .send()
+            .await?;
+
+        let status = response.status();
+        let response_text = response.text().await?;
+
+        if !status.is_success() {
+            bail!("API request failed with status: {} for URL: {}", status, url)
         } else {
             serde_json::from_str(&response_text).map_err(|e| {
                 anyhow::anyhow!("Failed to parse JSON response from {}: {}", url, e)
