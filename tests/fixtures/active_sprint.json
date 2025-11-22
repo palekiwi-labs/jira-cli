@@ -1,0 +1,18 @@
+{
+  "isLast": true,
+  "maxResults": 50,
+  "startAt": 0,
+  "total": 1,
+  "values": [
+    {
+      "id": 123,
+      "self": "https://example.atlassian.net/rest/agile/1.0/sprint/123",
+      "state": "active",
+      "name": "Sprint 42 - Feature Focus",
+      "startDate": "2025-11-17T09:00:00.000+0000",
+      "endDate": "2025-11-28T18:00:00.000+0000",
+      "originBoardId": 42,
+      "goal": "Complete user authentication and profile management"
+    }
+  ]
+}
