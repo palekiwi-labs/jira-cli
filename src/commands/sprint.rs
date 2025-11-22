@@ -51,7 +51,7 @@ async fn list(api: Api, args: ListArgs) -> Result<Value> {
     let params = SprintParams::new(args.state, args.max_results, None);
     let response = api.get_sprint(args.board_id, params).await?;
 
-    Ok(response)
+    Ok(serde_json::to_value(response)?)
 }
 
 async fn view(_api: Api, args: ViewArgs) -> Result<Value> {

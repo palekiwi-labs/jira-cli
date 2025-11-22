@@ -1,7 +1,6 @@
 use anyhow::{bail, Result};
 use reqwest::Client;
-use serde::Serialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
 
@@ -10,6 +9,44 @@ pub struct Api {
     email: String,
     token: String,
     base_url: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SprintResponse {
+    #[serde(rename = "isLast")]
+    pub is_last: bool,
+    #[serde(rename = "maxResults")]
+    pub max_results: u32,
+    #[serde(rename = "startAt")]
+    pub start_at: u32,
+    pub total: u32,
+    pub values: Vec<Sprint>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Sprint {
+    pub id: u32,
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub state: SprintState,
+    pub name: String,
+    #[serde(rename = "startDate")]
+    pub start_date: Option<String>,
+    #[serde(rename = "endDate")]
+    pub end_date: Option<String>,
+    #[serde(rename = "completeDate")]
+    pub complete_date: Option<String>,
+    #[serde(rename = "originBoardId")]
+    pub origin_board_id: u32,
+    pub goal: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SprintState {
+    Future,
+    Active,
+    Closed,
 }
 
 #[derive(Serialize)]
@@ -37,7 +74,7 @@ impl Api {
         }
     }
 
-    pub async fn get_sprint(&self, board_id: u32, params: SprintParams) -> Result<Value> {
+    pub async fn get_sprint(&self, board_id: u32, params: SprintParams) -> Result<SprintResponse> {
         let url = format!(
             "{}/rest/agile/1.0/board/{}/sprint",
             self.base_url,
