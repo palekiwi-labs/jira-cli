@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::config::Config;
 
@@ -90,13 +91,24 @@ pub struct Issue {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IssueFields {
-    pub summary: Option<String>,
-    pub description: Option<serde_json::Value>,
-    pub status: Option<IssueStatus>,
-    pub issuetype: Option<IssueType>,
     pub assignee: Option<Assignee>,
+    pub created: Option<String>,
+    pub description: Option<serde_json::Value>,
+    pub epic: Option<Epic>,
+    pub issuetype: Option<IssueType>,
+    pub labels: Option<Vec<String>>,
+    pub parent: Option<IssueReference>,
     pub priority: Option<Priority>,
     pub project: Option<Project>,
+    pub reporter: Option<Assignee>,  // Uses same structure as assignee
+    pub status: Option<IssueStatus>,
+    pub subtasks: Option<Vec<SubTask>>,
+    pub summary: Option<String>,
+    pub updated: Option<String>,
+    
+    // Catch-all for any additional fields (custom fields, etc.)
+    #[serde(flatten)]
+    pub additional_fields: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -129,6 +141,47 @@ pub struct Priority {
 pub struct Project {
     pub key: Option<String>,
     pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IssueReference {
+    pub id: String,
+    pub key: String,
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub fields: Option<IssueReferenceFields>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IssueReferenceFields {
+    pub summary: Option<String>,
+    pub status: Option<IssueStatus>,
+    pub issuetype: Option<IssueType>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Epic {
+    pub id: u32,
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub name: Option<String>,
+    pub summary: Option<String>,
+    pub color: Option<EpicColor>,
+    pub done: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EpicColor {
+    pub key: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SubTask {
+    pub id: String,
+    pub key: String,
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub fields: Option<IssueReferenceFields>,
 }
 
 #[derive(Serialize)]

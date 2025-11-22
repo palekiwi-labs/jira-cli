@@ -1,4 +1,4 @@
-mod api;
+pub mod api;
 mod cli;
 mod config;
 mod commands;
