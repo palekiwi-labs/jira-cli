@@ -2,7 +2,7 @@ use clap::{Args as ClapArgs, Subcommand};
 use anyhow::{Result};
 use serde_json::Value;
 
-use crate::api::Api;
+use crate::api::{Api, SprintParams};
 use crate::config::Config;
 
 #[derive(ClapArgs)]
@@ -30,6 +30,12 @@ struct ViewArgs {
 struct ListArgs {
     #[arg(long, env = "JIRA_BOARD_ID")]
     board_id: u32,
+
+    #[arg(short, long)]
+    state: Option<String>,
+
+    #[arg(short, long)]
+    max_results: Option<u32>,
 }
 
 pub async fn handle(config: Config, args: Args) -> Result<Value> {
@@ -42,7 +48,8 @@ pub async fn handle(config: Config, args: Args) -> Result<Value> {
 }
 
 async fn list(api: Api, args: ListArgs) -> Result<Value> {
-    let response = api.get_sprint(args.board_id).await?;
+    let params = SprintParams::new(args.state, args.max_results, None);
+    let response = api.get_sprint(args.board_id, params).await?;
 
     Ok(response)
 }
