@@ -54,7 +54,7 @@ export def get_issues [sprint_id: int, --status: string] {
                 $"\n[($parent_name)]"
                 ...($issues | each { |issue|
                     let assignee = $issue.fields.assignee?.displayName? | default "Unassigned"
-                    $"* ($issue.fields.summary) \(($assignee))"
+                    $"* ($assignee) | ($issue.fields.summary)"
                 })
             ]
         } else {
@@ -62,7 +62,7 @@ export def get_issues [sprint_id: int, --status: string] {
                 $"\n[Misc]"
                 ...($issues | each { |issue|
                     let assignee = $issue.fields.assignee?.displayName? | default "Unassigned"
-                    $"* ($issue.fields.summary) \(($assignee))"
+                    $"* ($assignee) | ($issue.fields.summary)"
                 })
             ]
         }
