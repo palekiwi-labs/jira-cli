@@ -3,12 +3,14 @@
 use lib/api.nu [request]
 use lib/config.nu [get_config]
 use lib/sprint.nu
+use lib/epic.nu
 
 def main [] {
-    print "Usage: jira-cli <sprint|issue> <command> [options]
+    print "Usage: jira-cli <sprint|epic|issue> <command> [options]
 
 Subcommands:
   sprint    Sprint operations
+  epic      Epic operations
   issue     Issue operations (not yet implemented)"
 }
 
@@ -51,6 +53,27 @@ def "main sprint report" [sprint_id?: int] {
         sprint get_active
     }
     sprint get_report $sprint.id
+}
+
+def "main epic" [] {
+    print "Usage: jira-cli epic <list|view|issues>
+
+Commands:
+  list [--done]     List all epics (optional: filter by done status)
+  view <id>         View epic details
+  issues <id>       List issues in an epic"
+}
+
+def "main epic list" [--done: string] {
+    epic list --done=$done
+}
+
+def "main epic view" [epic_id: int] {
+    epic get_by_id $epic_id
+}
+
+def "main epic issues" [epic_id: int] {
+    epic get_issues $epic_id
 }
 
 def "main issue" [] {
