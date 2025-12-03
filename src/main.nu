@@ -84,11 +84,14 @@ def "main issue" [] {
     print "Usage: jira-cli issue <view|list|create|update|assign|transition>
 
 Commands:
-  view <key>         View issue details by key (e.g., PROJ-123)
+  view <key> [--json]    View issue details by key (e.g., PROJ-123)
 
 (Other commands not yet implemented - coming in Phase 3)"
 }
 
-def "main issue view" [issue_key: string] {
-    issue get_by_key $issue_key
+def "main issue view" [
+    issue_key: string
+    --json                 # Output as JSON for piping/scripting
+] {
+    issue get_by_key $issue_key --json=$json
 }

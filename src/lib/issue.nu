@@ -2,7 +2,10 @@ use config.nu [get_config]
 use logger.nu [log log-success log-error]
 
 # Get a specific issue by key (e.g., "PROJ-123")
-export def get_by_key [issue_key: string] {
+export def get_by_key [
+    issue_key: string
+    --json                # Output as JSON for piping/scripting
+] {
     let config = get_config
     
     log $"Fetching issue ($issue_key)..."
@@ -15,7 +18,7 @@ export def get_by_key [issue_key: string] {
         log-success $"Found issue: ($response.key)"
         
         # Format the output nicely
-        {
+        let formatted = {
             key: $response.key
             summary: $response.fields.summary
             status: $response.fields.status.name
@@ -28,6 +31,12 @@ export def get_by_key [issue_key: string] {
             updated: $response.fields.updated
             epic: ($response.fields.parent?.fields?.summary? | default "None")
             url: $"($config.url)/browse/($response.key)"
+        }
+        
+        if $json {
+            $formatted | to json
+        } else {
+            $formatted
         }
     } catch {
         log-error $"Error: Failed to fetch issue ($issue_key)"
