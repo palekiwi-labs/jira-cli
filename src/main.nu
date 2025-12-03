@@ -4,6 +4,7 @@ use lib/api.nu [request]
 use lib/config.nu [get_config]
 use lib/sprint.nu
 use lib/epic.nu
+use lib/issue.nu
 
 def main [] {
     print "Usage: jira-cli <sprint|epic|issue> <command> [options]
@@ -81,5 +82,13 @@ def "main epic issues" [epic_id: int] {
 
 def "main issue" [] {
     print "Usage: jira-cli issue <view|list|create|update|assign|transition>
-(Not yet implemented - coming in Phase 3)"
+
+Commands:
+  view <key>         View issue details by key (e.g., PROJ-123)
+
+(Other commands not yet implemented - coming in Phase 3)"
+}
+
+def "main issue view" [issue_key: string] {
+    issue get_by_key $issue_key
 }
