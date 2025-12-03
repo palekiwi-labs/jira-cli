@@ -3,7 +3,10 @@ use config.nu [get_config]
 use logger.nu [log log-success log-error]
 
 # List all epics from the board
-export def list [--done: string] {
+export def list [
+    --done: string        # Filter by completion status (true/false)
+    --json                # Output as JSON for piping/scripting
+] {
     let config = get_config
     
     log "Fetching epics from board..."
@@ -19,9 +22,15 @@ export def list [--done: string] {
     
     log-success $"Found (($epics | length)) epic\(s\)"
     
-    $epics
-    | select key id name summary done
-    | rename issue_key epic_id epic_name epic_summary completed
+    let formatted = $epics
+        | select key id name summary done
+        | rename issue_key epic_id epic_name epic_summary completed
+    
+    if $json {
+        $formatted | to json
+    } else {
+        $formatted
+    }
 }
 
 # Get a specific epic by ID

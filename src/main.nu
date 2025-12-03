@@ -59,13 +59,16 @@ def "main epic" [] {
     print "Usage: jira-cli epic <list|view|issues>
 
 Commands:
-  list [--done]     List all epics (optional: filter by done status)
-  view <id>         View epic details
-  issues <id>       List issues in an epic"
+  list [--done] [--json]     List all epics (optional: filter by done status, output as JSON)
+  view <id>                  View epic details
+  issues <id>                List issues in an epic"
 }
 
-def "main epic list" [--done: string] {
-    epic list --done=$done
+def "main epic list" [
+    --done: string     # Filter by completion status (true/false)
+    --json             # Output as JSON for piping/scripting
+] {
+    epic list --done=$done --json=$json
 }
 
 def "main epic view" [epic_id: int] {
