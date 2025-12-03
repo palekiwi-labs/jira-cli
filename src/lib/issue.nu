@@ -49,7 +49,8 @@ export def create [
     summary: string              # Issue summary/title
     --project: string = "SB"     # Project key
     --type: string = "Task"      # Issue type (Task, Story, Bug, etc.)
-    --description: string        # Issue description
+    --description: string        # Issue description (direct text)
+    --description-file: string   # Path to markdown file for description
     --epic: string               # Epic key to link to (e.g., "SB-9413")
     --json                       # Output as JSON for piping/scripting
 ] {
@@ -67,8 +68,28 @@ export def create [
         summary: $summary
     }
     
-    # Add description if provided (using Atlassian Document Format)
-    if ($description != null) {
+    # Determine description source (file or direct text)
+    let desc_text = if ($description_file != null) {
+        # Validate both are not provided
+        if ($description != null) {
+            log-error "Error: Cannot use both --description and --description-file"
+            exit 1
+        }
+        # Check if file exists
+        if not ($description_file | path exists) {
+            log-error $"Error: File not found: ($description_file)"
+            exit 1
+        }
+        # Read markdown file content
+        open $description_file | str trim
+    } else if ($description != null) {
+        $description
+    } else {
+        null
+    }
+    
+    # Add description if provided (markdown preserved as plain text in ADF)
+    if ($desc_text != null) {
         $fields = ($fields | merge {
             description: {
                 type: "doc"
@@ -77,7 +98,7 @@ export def create [
                     type: "paragraph"
                     content: [{
                         type: "text"
-                        text: $description
+                        text: $desc_text
                     }]
                 }]
             }

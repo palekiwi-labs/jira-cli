@@ -88,7 +88,8 @@ Commands:
   create <summary> [options]               Create a new issue
     --project <key>                        Project key (default: SB)
     --type <type>                          Issue type (default: Task)
-    --description <text>                   Issue description
+    --description <text>                   Issue description (direct text)
+    --description-file <path>              Read description from markdown file
     --epic <key>                           Link to epic (e.g., SB-9413)
     --json                                 Output as JSON
 
@@ -104,11 +105,12 @@ def "main issue view" [
 
 def "main issue create" [
     summary: string
-    --project: string = "SB"    # Project key
-    --type: string = "Task"     # Issue type (Task, Story, Bug, etc.)
-    --description: string       # Issue description
-    --epic: string              # Epic key to link to
-    --json                      # Output as JSON for piping/scripting
+    --project: string = "SB"       # Project key
+    --type: string = "Task"        # Issue type (Task, Story, Bug, etc.)
+    --description: string          # Issue description (direct text)
+    --description-file: string     # Path to markdown file for description
+    --epic: string                 # Epic key to link to
+    --json                         # Output as JSON for piping/scripting
 ] {
-    issue create $summary --project=$project --type=$type --description=$description --epic=$epic --json=$json
+    issue create $summary --project=$project --type=$type --description=$description --description-file=$description_file --epic=$epic --json=$json
 }
