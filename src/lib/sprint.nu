@@ -53,20 +53,20 @@ export def get_issues [sprint_id: int, --status: string] {
             [
                 $"\n[($parent_name)]"
                 ...($issues | each { |issue|
-                    let assignee = $issue.fields.assignee?.displayName? | default "Unassigned"
-                    $"* ($issue.fields.summary) \(($assignee))"
+                    let assignee = ($issue.fields.assignee?.displayName? | default "Unassigned") | split row " " | first
+                    $"* ($assignee) | [($issue.key)]\(https://spabreaks.atlassian.net/browse/($issue.key)\) ($issue.fields.summary)"
                 })
             ]
         } else {
             [
                 $"\n[Misc]"
                 ...($issues | each { |issue|
-                    let assignee = $issue.fields.assignee?.displayName? | default "Unassigned"
-                    $"* ($issue.fields.summary) \(($assignee))"
+                    let assignee = ($issue.fields.assignee?.displayName? | default "Unassigned") | split row " " | first
+                    $"* ($assignee) | [($issue.key)]\(https://spabreaks.atlassian.net/browse/($issue.key)\) ($issue.fields.summary)"
                 })
             ]
         }
-    }
+}
     | flatten
     | str join "\n"
 }
