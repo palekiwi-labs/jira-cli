@@ -48,7 +48,7 @@ export def get_by_key [
 export def create [
     summary: string              # Issue summary/title
     --project: string = "SB"     # Project key
-    --type: string = "Task"      # Issue type (Task, Story, Bug, etc.)
+    --type: string = "Story"      # Issue type (Task, Story, Bug, etc.)
     --description: string        # Issue description (direct text)
     --description-file: string   # Path to markdown file for description
     --epic: string               # Epic key to link to (e.g., "SB-9413")
