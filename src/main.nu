@@ -81,7 +81,7 @@ def "main epic issues" [epic_id: int] {
 }
 
 def "main issue" [] {
-    print "Usage: jira-cli issue <view|create>
+    print "Usage: jira-cli issue <view|create|description>
 
 Commands:
   view <key> [--json]                      View issue details by key (e.g., PROJ-123)
@@ -92,6 +92,7 @@ Commands:
     --description-file <path>              Read description from markdown file
     --epic <key>                           Link to epic (e.g., SB-9413)
     --json                                 Output as JSON
+  description <key> [--output <path>]      Extract description as markdown
 
 (Other commands like list, update, assign, transition not yet implemented)"
 }
@@ -113,4 +114,11 @@ def "main issue create" [
     --json                         # Output as JSON for piping/scripting
 ] {
     issue create $summary --project=$project --type=$type --description=$description --description-file=$description_file --epic=$epic --json=$json
+}
+
+def "main issue description" [
+    issue_key: string
+    --output: string              # Save to file
+] {
+    issue get_description $issue_key --output=$output
 }

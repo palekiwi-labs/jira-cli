@@ -137,3 +137,42 @@ export def create [
         exit 1
     }
 }
+
+# Extract description as markdown from an issue
+export def get_description [
+    issue_key: string
+    --output: string     # Save to file (optional)
+] {
+    let config = get_config
+    
+    log $"Fetching description for ($issue_key)..."
+
+    # Use Platform API v3 to fetch just the description field
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)?fields=description"
+    
+    try {
+        let response = http get --user $config.email --password $config.token --headers [Content-Type application/json] $url
+        
+        # Extract markdown from ADF structure
+        let markdown = $response.fields.description?.content?.0?.content?.0?.text? | default ""
+        
+        if ($markdown | is-empty) {
+            log-error $"No description found for ($issue_key)"
+            exit 1
+        }
+        
+        log-success $"Retrieved description for ($issue_key)"
+        
+        if ($output != null) {
+            # Save to file
+            $markdown | save --force $output
+            log-success $"Description saved to: ($output)"
+        } else {
+            # Print to stdout
+            $markdown
+        }
+    } catch {
+        log-error $"Error: Failed to fetch description for ($issue_key)"
+        exit 1
+    }
+}
