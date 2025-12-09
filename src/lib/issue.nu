@@ -30,7 +30,7 @@ export def get_by_key [
             created: $response.fields.created
             updated: $response.fields.updated
             epic: ($response.fields.parent?.fields?.summary? | default "None")
-            labels: ($response.fields.labels? | default [])
+            labels: ($response.fields.labels? | default [] | str join ", ")
             url: $"($config.url)/browse/($response.key)"
         }
         
