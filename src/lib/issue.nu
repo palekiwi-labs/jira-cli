@@ -30,6 +30,7 @@ export def get_by_key [
             created: $response.fields.created
             updated: $response.fields.updated
             epic: ($response.fields.parent?.fields?.summary? | default "None")
+            labels: ($response.fields.labels? | default [])
             url: $"($config.url)/browse/($response.key)"
         }
         
@@ -52,6 +53,7 @@ export def create [
     --description: string        # Issue description (direct text)
     --description-file: string   # Path to markdown file for description
     --epic: string               # Epic key to link to (e.g., "SB-9413")
+    --labels: string             # Labels to add (comma-separated)
     --json                       # Output as JSON for piping/scripting
 ] {
     let config = get_config
@@ -108,6 +110,13 @@ export def create [
     # Add epic parent if provided
     if ($epic != null) {
         $fields = ($fields | merge { parent: { key: $epic } })
+    }
+    
+    # Add labels if provided
+    if ($labels != null) {
+        # Parse comma-separated labels into a list
+        let label_list = $labels | split row "," | each {|label| $label | str trim }
+        $fields = ($fields | merge { labels: $label_list })
     }
     
     let body = { fields: $fields }
@@ -298,6 +307,163 @@ export def transition [
         }
     } catch {
         log-error $"Error: Failed to transition issue ($issue_key)"
+        exit 1
+    }
+}
+
+# Add labels to an issue
+export def add_labels [
+    issue_key: string
+    labels: list<string>     # List of labels to add
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    # Validate inputs
+    if ($labels | is-empty) {
+        log-error "Error: No labels provided"
+        exit 1
+    }
+    
+    log $"Adding labels to issue ($issue_key)..."
+
+    # Use Platform API v3 for issue update
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)"
+    
+    # Build update operations for adding labels
+    let label_operations = $labels | each {|label|
+        { add: $label }
+    }
+    
+    let body = {
+        update: {
+            labels: $label_operations
+        }
+    }
+    
+    try {
+        let response = http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        log-success $"Successfully added labels to issue ($issue_key)"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            labels_added: $labels
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to add labels to issue ($issue_key)"
+        log-error "Make sure the issue exists and you have permission to edit it"
+        exit 1
+    }
+}
+
+# Remove labels from an issue
+export def remove_labels [
+    issue_key: string
+    labels: list<string>     # List of labels to remove
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    # Validate inputs
+    if ($labels | is-empty) {
+        log-error "Error: No labels provided"
+        exit 1
+    }
+    
+    log $"Removing labels from issue ($issue_key)..."
+
+    # Use Platform API v3 for issue update
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)"
+    
+    # Build update operations for removing labels
+    let label_operations = $labels | each {|label|
+        { remove: $label }
+    }
+    
+    let body = {
+        update: {
+            labels: $label_operations
+        }
+    }
+    
+    try {
+        let response = http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        log-success $"Successfully removed labels from issue ($issue_key)"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            labels_removed: $labels
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to remove labels from issue ($issue_key)"
+        log-error "Make sure the issue exists and you have permission to edit it"
+        exit 1
+    }
+}
+
+# Set all labels for an issue (replace existing labels)
+export def set_labels [
+    issue_key: string
+    labels: list<string>     # List of labels to set
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    # Validate inputs
+    if ($labels | is-empty) {
+        log-error "Error: No labels provided"
+        exit 1
+    }
+    
+    log $"Setting labels for issue ($issue_key)..."
+
+    # Use Platform API v3 for issue update
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)"
+    
+    # Build update operation for setting labels
+    let body = {
+        update: {
+            labels: [
+                { set: $labels }
+            ]
+        }
+    }
+    
+    try {
+        let response = http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        log-success $"Successfully set labels for issue ($issue_key)"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            labels_set: $labels
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to set labels for issue ($issue_key)"
+        log-error "Make sure the issue exists and you have permission to edit it"
         exit 1
     }
 }

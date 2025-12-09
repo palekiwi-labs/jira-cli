@@ -81,7 +81,7 @@ def "main epic issues" [epic_id: int] {
 }
 
 def "main issue" [] {
-    print "Usage: jira-cli issue <view|create|description|transitions|transition>
+    print "Usage: jira-cli issue <view|create|description|transitions|transition|labels>
 
 Commands:
   view <key> [--json]                      View issue details by key (e.g., PROJ-123)
@@ -91,11 +91,17 @@ Commands:
     --description <text>                   Issue description (direct text)
     --description-file <path>              Read description from markdown file
     --epic <key>                           Link to epic (e.g., SB-9413)
+    --labels <labels>                       Labels to add (comma-separated)
     --json                                 Output as JSON
   description <key> [--output <path>]      Extract description as markdown
   transitions <key> [--json]               List available transitions for an issue
   transition <key> <name> [options]        Transition an issue to a new status
     --comment <text>                       Add comment with transition
+    --json                                 Output as JSON
+  labels <key> [subcommand] [options]     Manage issue labels
+    add <labels...>                        Add labels to issue
+    remove <labels...>                     Remove labels from issue
+    set <labels...>                        Set all labels for issue (replaces existing)
     --json                                 Output as JSON
 
 (Other commands like list, update, assign not yet implemented)"
@@ -115,9 +121,10 @@ def "main issue create" [
     --description: string          # Issue description (direct text)
     --description-file: string     # Path to markdown file for description
     --epic: string                 # Epic key to link to
+    --labels: string               # Labels to add (comma-separated)
     --json                         # Output as JSON for piping/scripting
 ] {
-    issue create $summary --project=$project --type=$type --description=$description --description-file=$description_file --epic=$epic --json=$json
+    issue create $summary --project=$project --type=$type --description=$description --description-file=$description_file --epic=$epic --labels=$labels --json=$json
 }
 
 def "main issue description" [
@@ -141,4 +148,43 @@ def "main issue transition" [
     --json                        # Output as JSON for piping/scripting
 ] {
     issue transition $issue_key $transition_name --comment=$comment --json=$json
+}
+
+def "main issue labels" [] {
+    print "Usage: jira-cli issue labels <key> <add|remove|set> [options]
+
+Subcommands:
+  add <labels...>                        Add labels to issue
+  remove <labels...>                     Remove labels from issue  
+  set <labels...>                        Set all labels for issue (replaces existing)
+    --json                                 Output as JSON
+
+Examples:
+  jira-cli issue labels add PROJ-123 bugfix urgent
+  jira-cli issue labels remove PROJ-123 old-label duplicate
+  jira-cli issue labels set PROJ-123 \"new feature\" backend"
+}
+
+def "main issue labels add" [
+    issue_key: string
+    ...labels: string        # Labels to add (variable number)
+    --json                    # Output as JSON for piping/scripting
+] {
+    issue add_labels $issue_key $labels --json=$json
+}
+
+def "main issue labels remove" [
+    issue_key: string
+    ...labels: string        # Labels to remove (variable number)
+    --json                    # Output as JSON for piping/scripting
+] {
+    issue remove_labels $issue_key $labels --json=$json
+}
+
+def "main issue labels set" [
+    issue_key: string
+    ...labels: string        # Labels to set (replaces all existing)
+    --json                    # Output as JSON for piping/scripting
+] {
+    issue set_labels $issue_key $labels --json=$json
 }
