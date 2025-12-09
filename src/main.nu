@@ -81,7 +81,7 @@ def "main epic issues" [epic_id: int] {
 }
 
 def "main issue" [] {
-    print "Usage: jira-cli issue <view|create|description>
+    print "Usage: jira-cli issue <view|create|description|transitions|transition>
 
 Commands:
   view <key> [--json]                      View issue details by key (e.g., PROJ-123)
@@ -93,8 +93,12 @@ Commands:
     --epic <key>                           Link to epic (e.g., SB-9413)
     --json                                 Output as JSON
   description <key> [--output <path>]      Extract description as markdown
+  transitions <key> [--json]               List available transitions for an issue
+  transition <key> <name> [options]        Transition an issue to a new status
+    --comment <text>                       Add comment with transition
+    --json                                 Output as JSON
 
-(Other commands like list, update, assign, transition not yet implemented)"
+(Other commands like list, update, assign not yet implemented)"
 }
 
 def "main issue view" [
@@ -121,4 +125,20 @@ def "main issue description" [
     --output: string              # Save to file
 ] {
     issue get_description $issue_key --output=$output
+}
+
+def "main issue transitions" [
+    issue_key: string
+    --json                        # Output as JSON for piping/scripting
+] {
+    issue get_transitions $issue_key --json=$json
+}
+
+def "main issue transition" [
+    issue_key: string
+    transition_name: string       # Name of the transition (e.g., "Start Progress", "Review")
+    --comment: string             # Optional comment to add with the transition
+    --json                        # Output as JSON for piping/scripting
+] {
+    issue transition $issue_key $transition_name --comment=$comment --json=$json
 }

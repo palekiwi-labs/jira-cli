@@ -176,3 +176,128 @@ export def get_description [
         exit 1
     }
 }
+
+# Get available transitions for an issue
+export def get_transitions [
+    issue_key: string
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    log $"Fetching available transitions for ($issue_key)..."
+
+    # Use Platform API v3 to get transitions
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)/transitions"
+    
+    try {
+        let response = http get --user $config.email --password $config.token --headers [Content-Type application/json] $url
+        
+        log-success $"Found ($response.transitions | length) available transitions"
+        
+        # Format the output nicely
+        let formatted = $response.transitions | each {|transition|
+            {
+                id: $transition.id
+                name: $transition.name
+                to_status: $transition.to.name
+                available: $transition.isAvailable
+            }
+        }
+        
+        if $json {
+            $formatted | to json
+        } else {
+            $formatted
+        }
+    } catch {
+        log-error $"Error: Failed to fetch transitions for ($issue_key)"
+        exit 1
+    }
+}
+
+# Transition an issue to a new status
+export def transition [
+    issue_key: string
+    transition_name: string   # Name of the transition (e.g., "Start Progress", "Review")
+    --comment: string         # Optional comment to add with the transition
+    --json                    # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    log $"Transitioning ($issue_key) to '($transition_name)'..."
+
+    # First, get available transitions to find the transition ID
+    let transitions_url = $"($config.url)/rest/api/3/issue/($issue_key)/transitions"
+    
+    try {
+        let transitions_response = http get --user $config.email --password $config.token --headers [Content-Type application/json] $transitions_url
+        
+        # Find the transition by name (case-insensitive)
+        let transition = $transitions_response.transitions | where {|t| $t.name =~ $transition_name } | first
+        
+        if ($transition == null) {
+            log-error $"Error: Transition '($transition_name)' not found for issue ($issue_key)"
+            log-error "Available transitions:"
+            $transitions_response.transitions | each {|t| log-error $"  - ($t.name)" }
+            exit 1
+        }
+        
+        if not $transition.isAvailable {
+            log-error $"Error: Transition '($transition_name)' is not available for issue ($issue_key)"
+            exit 1
+        }
+        
+        # Build the transition request
+        mut transition_body = {
+            transition: {
+                id: $transition.id
+            }
+        }
+        
+        # Add comment if provided
+        if ($comment != null) {
+            $transition_body = ($transition_body | merge {
+                update: {
+                    comment: [{
+                        add: {
+                            body: {
+                                type: "doc"
+                                version: 1
+                                content: [{
+                                    type: "paragraph"
+                                    content: [{
+                                        type: "text"
+                                        text: $comment
+                                    }]
+                                }]
+                            }
+                        }
+                    }]
+                }
+            })
+        }
+        
+        # Perform the transition
+        let transition_url = $"($config.url)/rest/api/3/issue/($issue_key)/transitions"
+        let response = http post --user $config.email --password $config.token --headers [Content-Type application/json] $transition_url ($transition_body | to json)
+        
+        log-success $"Successfully transitioned ($issue_key) to '($transition.to.name)'"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            transition: $transition.name
+            new_status: $transition.to.name
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to transition issue ($issue_key)"
+        exit 1
+    }
+}
