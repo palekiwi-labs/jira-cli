@@ -342,13 +342,13 @@ export def add_labels [
     }
     
     try {
-        let response = http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
         log-success $"Successfully added labels to issue ($issue_key)"
-        
+
         # Return simple success response
         let result = {
             issue_key: $issue_key
-            labels_added: $labels
+            labels_added: ($labels | str join ", ")
             success: true
         }
         
