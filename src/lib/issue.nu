@@ -122,7 +122,31 @@ export def create [
     let body = { fields: $fields }
     
     try {
-        let response = http post --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        let response = http post --allow-errors --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        
+        # Check if the response indicates an error
+        if ($response | describe) =~ "record" and ($response.errorMessages? != null or $response.errors? != null) {
+            log-error "Error: Failed to create issue"
+            
+            # Display Jira's error messages
+            if ($response.errorMessages? != null) {
+                $response.errorMessages | each {|msg| log-error $"  - ($msg)" }
+            }
+            
+            # Display field-specific errors
+            if ($response.errors? != null) {
+                log-error "Field errors:"
+                $response.errors | transpose key value | each {|row|
+                    log-error $"  - ($row.key): ($row.value)"
+                }
+            }
+            
+            log-error $"Make sure the project '($project)' exists and issue type '($type)' is valid"
+            if ($epic != null) {
+                log-error $"Also check that epic '($epic)' exists"
+            }
+            exit 1
+        }
         
         log-success $"Created issue: ($response.key)"
         
@@ -137,12 +161,9 @@ export def create [
         } else {
             $formatted
         }
-    } catch {
-        log-error "Error: Failed to create issue"
-        log-error $"Make sure the project '($project)' exists and issue type '($type)' is valid"
-        if ($epic != null) {
-            log-error $"Also check that epic '($epic)' exists"
-        }
+    } catch { |err|
+        log-error "Error: Failed to create issue - network or request error"
+        log-error $"Details: ($err | to json)"
         exit 1
     }
 }
