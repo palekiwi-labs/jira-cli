@@ -30,6 +30,7 @@ export def get_by_key [
             created: $response.fields.created
             updated: $response.fields.updated
             epic: ($response.fields.parent?.fields?.summary? | default "None")
+            labels: ($response.fields.labels? | default [] | str join ", ")
             url: $"($config.url)/browse/($response.key)"
         }
         
@@ -52,6 +53,7 @@ export def create [
     --description: string        # Issue description (direct text)
     --description-file: string   # Path to markdown file for description
     --epic: string               # Epic key to link to (e.g., "SB-9413")
+    --labels: string             # Labels to add (comma-separated)
     --json                       # Output as JSON for piping/scripting
 ] {
     let config = get_config
@@ -110,10 +112,41 @@ export def create [
         $fields = ($fields | merge { parent: { key: $epic } })
     }
     
+    # Add labels if provided
+    if ($labels != null) {
+        # Parse comma-separated labels into a list
+        let label_list = $labels | split row "," | each {|label| $label | str trim }
+        $fields = ($fields | merge { labels: $label_list })
+    }
+    
     let body = { fields: $fields }
     
     try {
-        let response = http post --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        let response = http post --allow-errors --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        
+        # Check if the response indicates an error
+        if ($response | describe) =~ "record" and ($response.errorMessages? != null or $response.errors? != null) {
+            log-error "Error: Failed to create issue"
+            
+            # Display Jira's error messages
+            if ($response.errorMessages? != null) {
+                $response.errorMessages | each {|msg| log-error $"  - ($msg)" }
+            }
+            
+            # Display field-specific errors
+            if ($response.errors? != null) {
+                log-error "Field errors:"
+                $response.errors | transpose key value | each {|row|
+                    log-error $"  - ($row.key): ($row.value)"
+                }
+            }
+            
+            log-error $"Make sure the project '($project)' exists and issue type '($type)' is valid"
+            if ($epic != null) {
+                log-error $"Also check that epic '($epic)' exists"
+            }
+            exit 1
+        }
         
         log-success $"Created issue: ($response.key)"
         
@@ -128,12 +161,9 @@ export def create [
         } else {
             $formatted
         }
-    } catch {
-        log-error "Error: Failed to create issue"
-        log-error $"Make sure the project '($project)' exists and issue type '($type)' is valid"
-        if ($epic != null) {
-            log-error $"Also check that epic '($epic)' exists"
-        }
+    } catch { |err|
+        log-error "Error: Failed to create issue - network or request error"
+        log-error $"Details: ($err | to json)"
         exit 1
     }
 }
@@ -173,6 +203,288 @@ export def get_description [
         }
     } catch {
         log-error $"Error: Failed to fetch description for ($issue_key)"
+        exit 1
+    }
+}
+
+# Get available transitions for an issue
+export def get_transitions [
+    issue_key: string
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    log $"Fetching available transitions for ($issue_key)..."
+
+    # Use Platform API v3 to get transitions
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)/transitions"
+    
+    try {
+        let response = http get --user $config.email --password $config.token --headers [Content-Type application/json] $url
+        
+        log-success $"Found ($response.transitions | length) available transitions"
+        
+        # Format the output nicely
+        let formatted = $response.transitions | each {|transition|
+            {
+                id: $transition.id
+                name: $transition.name
+                to_status: $transition.to.name
+                available: $transition.isAvailable
+            }
+        }
+        
+        if $json {
+            $formatted | to json
+        } else {
+            $formatted
+        }
+    } catch {
+        log-error $"Error: Failed to fetch transitions for ($issue_key)"
+        exit 1
+    }
+}
+
+# Transition an issue to a new status
+export def transition [
+    issue_key: string
+    transition_name: string   # Name of the transition (e.g., "Start Progress", "Review")
+    --comment: string         # Optional comment to add with the transition
+    --json                    # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    log $"Transitioning ($issue_key) to '($transition_name)'..."
+
+    # First, get available transitions to find the transition ID
+    let transitions_url = $"($config.url)/rest/api/3/issue/($issue_key)/transitions"
+    
+    try {
+        let transitions_response = http get --user $config.email --password $config.token --headers [Content-Type application/json] $transitions_url
+        
+        # Find the transition by name (case-insensitive)
+        let transition = $transitions_response.transitions | where {|t| $t.name =~ $transition_name } | first
+        
+        if ($transition == null) {
+            log-error $"Error: Transition '($transition_name)' not found for issue ($issue_key)"
+            log-error "Available transitions:"
+            $transitions_response.transitions | each {|t| log-error $"  - ($t.name)" }
+            exit 1
+        }
+        
+        if not $transition.isAvailable {
+            log-error $"Error: Transition '($transition_name)' is not available for issue ($issue_key)"
+            exit 1
+        }
+        
+        # Build the transition request
+        mut transition_body = {
+            transition: {
+                id: $transition.id
+            }
+        }
+        
+        # Add comment if provided
+        if ($comment != null) {
+            $transition_body = ($transition_body | merge {
+                update: {
+                    comment: [{
+                        add: {
+                            body: {
+                                type: "doc"
+                                version: 1
+                                content: [{
+                                    type: "paragraph"
+                                    content: [{
+                                        type: "text"
+                                        text: $comment
+                                    }]
+                                }]
+                            }
+                        }
+                    }]
+                }
+            })
+        }
+        
+        # Perform the transition
+        let transition_url = $"($config.url)/rest/api/3/issue/($issue_key)/transitions"
+        let response = http post --user $config.email --password $config.token --headers [Content-Type application/json] $transition_url ($transition_body | to json)
+        
+        log-success $"Successfully transitioned ($issue_key) to '($transition.to.name)'"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            transition: $transition.name
+            new_status: $transition.to.name
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to transition issue ($issue_key)"
+        exit 1
+    }
+}
+
+# Add labels to an issue
+export def add_labels [
+    issue_key: string
+    labels: list<string>     # List of labels to add
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    # Validate inputs
+    if ($labels | is-empty) {
+        log-error "Error: No labels provided"
+        exit 1
+    }
+    
+    log $"Adding labels to issue ($issue_key)..."
+
+    # Use Platform API v3 for issue update
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)"
+    
+    # Build update operations for adding labels
+    let label_operations = $labels | each {|label|
+        { add: $label }
+    }
+    
+    let body = {
+        update: {
+            labels: $label_operations
+        }
+    }
+    
+    try {
+        http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        log-success $"Successfully added labels to issue ($issue_key)"
+
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            labels_added: ($labels | str join ", ")
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to add labels to issue ($issue_key)"
+        log-error "Make sure the issue exists and you have permission to edit it"
+        exit 1
+    }
+}
+
+# Remove labels from an issue
+export def remove_labels [
+    issue_key: string
+    labels: list<string>     # List of labels to remove
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    # Validate inputs
+    if ($labels | is-empty) {
+        log-error "Error: No labels provided"
+        exit 1
+    }
+    
+    log $"Removing labels from issue ($issue_key)..."
+
+    # Use Platform API v3 for issue update
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)"
+    
+    # Build update operations for removing labels
+    let label_operations = $labels | each {|label|
+        { remove: $label }
+    }
+    
+    let body = {
+        update: {
+            labels: $label_operations
+        }
+    }
+    
+    try {
+        let response = http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        log-success $"Successfully removed labels from issue ($issue_key)"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            labels_removed: $labels
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to remove labels from issue ($issue_key)"
+        log-error "Make sure the issue exists and you have permission to edit it"
+        exit 1
+    }
+}
+
+# Set all labels for an issue (replace existing labels)
+export def set_labels [
+    issue_key: string
+    labels: list<string>     # List of labels to set
+    --json                # Output as JSON for piping/scripting
+] {
+    let config = get_config
+    
+    # Validate inputs
+    if ($labels | is-empty) {
+        log-error "Error: No labels provided"
+        exit 1
+    }
+    
+    log $"Setting labels for issue ($issue_key)..."
+
+    # Use Platform API v3 for issue update
+    let url = $"($config.url)/rest/api/3/issue/($issue_key)"
+    
+    # Build update operation for setting labels
+    let body = {
+        update: {
+            labels: [
+                { set: $labels }
+            ]
+        }
+    }
+    
+    try {
+        let response = http put --user $config.email --password $config.token --headers [Content-Type application/json] $url ($body | to json)
+        log-success $"Successfully set labels for issue ($issue_key)"
+        
+        # Return simple success response
+        let result = {
+            issue_key: $issue_key
+            labels_set: $labels
+            success: true
+        }
+        
+        if $json {
+            $result | to json
+        } else {
+            $result
+        }
+    } catch {
+        log-error $"Error: Failed to set labels for issue ($issue_key)"
+        log-error "Make sure the issue exists and you have permission to edit it"
         exit 1
     }
 }
